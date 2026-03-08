@@ -25,35 +25,44 @@ class LedgerService {
   }
 
   addBlock(type: string, payload: any) {
-    const prev = this.chain[this.chain.length - 1];
+  const prev = this.chain[this.chain.length - 1];
+  const timestamp = new Date().toISOString();
 
-    const dataString = `${prev.index + 1}${new Date().toISOString()}${type}${JSON.stringify(payload)}${prev.hash}`;
-    const hash = generateHash(dataString);
+  const rawData = `${prev.index + 1}${timestamp}${type}${JSON.stringify(payload)}${prev.hash}`;
+  const hash = generateHash(rawData);
 
-    const block: Block = {
-      index: prev.index + 1,
-      timestamp: new Date().toISOString(),
-      type,
-      payload,
-      prevHash: prev.hash,
-      hash
-    };
+  const block: Block = {
+    index: prev.index + 1,
+    timestamp,
+    type,
+    payload,
+    prevHash: prev.hash,
+    hash
+  };
 
-    this.chain.push(block);
-    return block;
-  }
+  this.chain.push(block);
+  return block;
+}
 
   verifyChain() {
-    for (let i = 1; i < this.chain.length; i++) {
-      const curr = this.chain[i];
-      const prev = this.chain[i - 1];
+  for (let i = 1; i < this.chain.length; i++) {
+    const curr = this.chain[i];
+    const prev = this.chain[i - 1];
 
-      if (curr.prevHash !== prev.hash) {
-        return { valid: false, corruptedBlock: curr.index };
-      }
+    if (curr.prevHash !== prev.hash) {
+      return { valid: false, corruptedBlock: curr.index, reason: "Broken chain link" };
     }
-    return { valid: true, corruptedBlock: null };
+
+    const rawData = `${curr.index}${curr.timestamp}${curr.type}${JSON.stringify(curr.payload)}${curr.prevHash}`;
+    const recalculatedHash = generateHash(rawData);
+
+    if (curr.hash !== recalculatedHash) {
+      return { valid: false, corruptedBlock: curr.index, reason: "Hash mismatch" };
+    }
   }
+
+  return { valid: true, corruptedBlock: null };
+}
 }
 
 export const ledgerService = new LedgerService();
